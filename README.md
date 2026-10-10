@@ -1,6 +1,16 @@
 # Anti-Slop Scanner
 
-Scan GitHub repositories for AI-generated slop patterns: generic UI, copywriting tells, and code comment noise.
+Scan GitHub repositories for AI-generated slop patterns — generic UI, filler copy, and code noise.
+
+**Live demo**: https://srv1304246.tail364e73.ts.net:8443
+
+## What it does
+
+Paste any public GitHub repo URL, click Scan, and get:
+- Overall slop score (0–100, lower = cleaner)
+- File-by-file breakdown of violations
+- Category visualization (UI / Copy / Code)
+- 23 detection rules across three categories
 
 ## Setup
 
@@ -8,23 +18,34 @@ Scan GitHub repositories for AI-generated slop patterns: generic UI, copywriting
 npm install && npm start
 ```
 
-Open [http://localhost:3000](http://localhost:3000), paste a GitHub repo URL, and click **Scan Repository**.
+Open http://localhost:3100.
 
-## How it works
+## Architecture
 
-- Clones the target repo with `git clone --depth 1` into a temp directory
-- Scans files for 23 slop patterns across three categories:
-  - **UI**: sparkle icons, beta pills, fake terminals, purple gradients, buzzwords, glassmorphism, bento grids, status dots
-  - **Copy**: emoji bullets, ALL CAPS hype, leverage/synergy/robust, fake testimonials, em dashes, filler phrases, weasel attributions
-  - **Code**: box-drawing comment banners, emoji in comments, obvious restatements, step narration, empty labels, end markers
-- Returns a score (0-100, lower is cleaner) with file-by-file breakdown and category bars
-- Repos are deleted immediately after scanning
+| Layer | Stack |
+|-------|-------|
+| Server | Node.js + Express |
+| Frontend | Vanilla HTML/CSS (dark theme) |
+| Scanning | git clone + regex rules (23 patterns) |
+| Dependencies | express only |
+
+No database, no API keys, no external services post-install.
+
+## Part of the Star → POC Pipeline
+
+This POC was autonomously built as Stage 3 of an automated pipeline:
+
+1. **Analyze** — LLM generates 3 experiment ideas from a starred repo
+2. **Vote** — Human picks the best idea via Telegram
+3. **Build** — Hermes subagent scaffolds the code (← this step)
+4. **Deploy** — Tailscale demo + GitHub publish
+5. **Memo** — Styled PDF executive summary
 
 ## Requirements
 
 - Node.js 18+
 - `git` available on PATH
 
-## Air-gapped safe
+## License
 
-No external API calls. Everything runs locally once `npm install` finishes.
+MIT
