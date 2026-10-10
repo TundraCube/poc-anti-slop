@@ -66,6 +66,23 @@ const CODE_PATTERNS = [
 
 const ALL_PATTERNS = [...UI_PATTERNS, ...COPY_PATTERNS, ...CODE_PATTERNS];
 
+function countFiles(dir) {
+  let count = 0;
+  try {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.name.startsWith('.') || entry.name === 'node_modules') continue;
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        count += countFiles(full);
+      } else {
+        count += 1;
+      }
+    }
+  } catch (_) {}
+  return count;
+}
+
 function scanFile(filePath, content) {
   const ext = path.extname(filePath).toLowerCase();
   const violations = [];
@@ -136,13 +153,25 @@ app.post('/scan', async (req, res) => {
     }
 
     // Score: 0 = clean, 100 = maximum slop. Weighted by violations per file.
-    const fileCount = results.length || 1;
+    const filesScanned = results.length || 0;
+    const fileCount = filesScanned || 1;
     const score = Math.min(100, Math.round((totalViolations / fileCount) * 5));
+
+    // If no files were even checked, score is meaningless — report it
+    const filesChecked = results.length > 0 ? results.length : 0;
+    const totalFilesInRepo = countFiles(tmpDir);
 
     // Cleanup
     fs.rmSync(tmpDir, { recursive: true, force: true });
 
-    res.json({ score, totalViolations, categories: catCounts, results });
+    res.json({
+      score,
+      totalViolations,
+      categories: catCounts,
+      filesScanned: filesChecked,
+      totalFilesInRepo,
+      results
+    });
   } catch (e) {
     // Cleanup on error
     try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch (_) {}
