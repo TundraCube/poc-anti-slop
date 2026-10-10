@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anti-Slop Scanner</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0d1117;
+  --bg2: #161b22;
+  --border: #30363d;
+  --text: #c9d1d9;
+  --muted: #8b949e;
+  --accent: #58a6ff;
+  --green: #3fb950;
+  --orange: #d2991d;
+  --red: #f85149;
+  --radius: 6px;
+}
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  background: var(--bg); color: var(--text); min-height: 100vh; line-height: 1.6;
+}
+header {
+  border-bottom: 1px solid var(--border); padding: 16px 24px;
+  display: flex; align-items: center; gap: 12px;
+}
+header h1 { font-size: 18px; font-weight: 600; color: var(--text); }
+header span { color: var(--muted); font-size: 13px; }
+main { max-width: 900px; margin: 0 auto; padding: 0 24px; }
+/* Landing */
+.hero { text-align: center; padding: 80px 0 48px; }
+.hero h2 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+.hero p { color: var(--muted); font-size: 15px; max-width: 500px; margin: 0 auto; }
+.form-card {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 24px; margin-bottom: 48px;
+}
+.form-card label { display: block; color: var(--muted); font-size: 13px; margin-bottom: 8px; }
+.form-card input {
+  width: 100%; padding: 10px 14px; border-radius: var(--radius);
+  background: var(--bg); border: 1px solid var(--border); color: var(--text);
+  font-size: 14px; outline: none; margin-bottom: 16px;
+}
+.form-card input:focus { border-color: var(--accent); }
+.form-card button {
+  width: 100%; padding: 10px; border-radius: var(--radius);
+  background: var(--accent); color: #fff; border: none; font-size: 14px;
+  font-weight: 600; cursor: pointer;
+}
+.form-card button:hover { filter: brightness(1.1); }
+.form-card button:disabled { opacity: 0.5; cursor: wait; }
+/* Error */
+.error { background: #3a1010; border: 1px solid var(--red); border-radius: var(--radius);
+  padding: 12px 16px; margin-bottom: 24px; color: #fdaeb7; }
+/* Results */
+.results { display: none; }
+.results.active { display: block; }
+.dashboard { margin-bottom: 32px; }
+.score-row {
+  display: flex; gap: 24px; margin-bottom: 24px; flex-wrap: wrap;
+}
+.score-card {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 20px 24px; flex: 1; min-width: 180px; text-align: center;
+}
+.score-card .value { font-size: 36px; font-weight: 700; }
+.score-card .label { color: var(--muted); font-size: 13px; margin-top: 4px; }
+.score-card.good .value { color: var(--green); }
+.score-card.warn .value { color: var(--orange); }
+.score-card.bad .value { color: var(--red); }
+.category-bars { margin-bottom: 32px; }
+.cat-row { margin-bottom: 12px; display: flex; align-items: center; gap: 12px; }
+.cat-label { width: 60px; font-size: 13px; color: var(--muted); text-align: right; }
+.cat-bar-wrap { flex: 1; background: var(--bg); border-radius: 3px; height: 10px; overflow: hidden; }
+.cat-bar { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+.cat-bar.ui { background: var(--accent); }
+.cat-bar.copy { background: var(--orange); }
+.cat-bar.code { background: var(--green); }
+.cat-count { width: 50px; font-size: 13px; color: var(--text); font-variant-numeric: tabular-nums; }
+.breakdown h3 { font-size: 16px; margin-bottom: 16px; }
+.file-row {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 14px 18px; margin-bottom: 8px;
+}
+.file-row summary { cursor: pointer; display: flex; align-items: center; gap: 12px;
+  font-size: 13px; outline: none; list-style: none; }
+.file-row summary::-webkit-details-marker { display: none; }
+.file-name { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; flex: 1;
+  word-break: break-all; }
+.file-count { font-size: 12px; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
+.file-count.high { background: #3a1010; color: var(--red); }
+.file-count.med { background: #2e2612; color: var(--orange); }
+.file-count.low { background: #0e2a17; color: var(--green); }
+.violation-item { padding: 6px 0 6px 24px; font-size: 12px; color: var(--muted);
+  display: flex; justify-content: space-between; gap: 12px; }
+.violation-item .sample { color: #6e7681; font-family: monospace; font-size: 11px;
+  max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.spinner { display: none; text-align: center; padding: 48px; color: var(--muted); }
+.spinner.active { display: block; }
+.spinner::after { content: ''; display: block; width: 24px; height: 24px; margin: 12px auto 0;
+  border: 2px solid var(--border); border-top: 2px solid var(--accent); border-radius: 50%;
+  animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+footer { text-align: center; padding: 32px 0; color: var(--muted); font-size: 12px;
+  border-top: 1px solid var(--border); margin-top: 48px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Anti-Slop Scanner</h1>
+  <span>Scan GitHub repos for AI-generated slop patterns</span>
+</header>
+<main>
+  <section class="hero" id="hero">
+    <h2>How much AI slop is in that repo?</h2>
+    <p>Paste a GitHub URL. We clone it, scan for common AI-generation patterns in UI, copy, and code, then show you a score.</p>
+  </section>
+
+  <form class="form-card" id="scanForm">
+    <label for="repoUrl">GitHub repository URL</label>
+    <input type="text" id="repoUrl" placeholder="https://github.com/user/repo" required autofocus>
+    <button type="submit" id="scanBtn">Scan Repository</button>
+  </form>
+
+  <div class="spinner" id="spinner">Scanning repository...</div>
+  <div class="error" id="error" style="display:none"></div>
+
+  <div class="results" id="results">
+    <div class="dashboard" id="dashboard"></div>
+    <div class="category-bars" id="catBars"></div>
+    <div class="breakdown" id="breakdown"></div>
+  </div>
+</main>
+<footer>Scans run offline. Repos are cloned temporarily and deleted after scanning. No data is stored.</footer>
+
+<script>
+const form = document.getElementById('scanForm');
+const hero = document.getElementById('hero');
+const spinner = document.getElementById('spinner');
+const error = document.getElementById('error');
+const results = document.getElementById('results');
+const dashboard = document.getElementById('dashboard');
+const catBars = document.getElementById('catBars');
+const breakdown = document.getElementById('breakdown');
+const scanBtn = document.getElementById('scanBtn');
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const url = document.getElementById('repoUrl').value.trim();
+  if (!url) return;
+
+  hero.style.display = 'none';
+  results.classList.remove('active');
+  error.style.display = 'none';
+  spinner.classList.add('active');
+  scanBtn.disabled = true;
+
+  try {
+    const resp = await fetch('/scan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    const data = await resp.json();
+    spinner.classList.remove('active');
+    scanBtn.disabled = false;
+
+    if (!resp.ok) { showError(data.error); return; }
+
+    renderResults(data);
+  } catch (err) {
+    spinner.classList.remove('active');
+    scanBtn.disabled = false;
+    showError('Network error. Is the server running?');
+  }
+});
+
+function showError(msg) {
+  error.textContent = msg;
+  error.style.display = 'block';
+}
+
+function scoreClass(s) {
+  if (s <= 20) return 'good';
+  if (s <= 50) return 'warn';
+  return 'bad';
+}
+
+function countClass(c, max) {
+  if (max === 0) return 'low';
+  if (c > max * 0.5) return 'high';
+  if (c > max * 0.2) return 'med';
+  return 'low';
+}
+
+function renderResults(data) {
+  const cls = scoreClass(data.score);
+  const maxCat = Math.max(data.categories.UI || 0, data.categories.Copy || 0, data.categories.Code || 0, 1);
+
+  dashboard.innerHTML = `
+    <div class="score-row">
+      <div class="score-card ${cls}">
+        <div class="value">${data.score}</div>
+        <div class="label">Slop Score<br><small>(0 = clean, 100 = max slop)</small></div>
+      </div>
+      <div class="score-card">
+        <div class="value">${data.totalViolations}</div>
+        <div class="label">Total Violations</div>
+      </div>
+      <div class="score-card">
+        <div class="value">${data.results.length}</div>
+        <div class="label">Files Flagged</div>
+      </div>
+    </div>`;
+
+  catBars.innerHTML = `
+    <div class="cat-row">
+      <span class="cat-label">UI</span>
+      <div class="cat-bar-wrap"><div class="cat-bar ui" style="width:${(data.categories.UI||0)/maxCat*100}%"></div></div>
+      <span class="cat-count">${data.categories.UI || 0}</span>
+    </div>
+    <div class="cat-row">
+      <span class="cat-label">Copy</span>
+      <div class="cat-bar-wrap"><div class="cat-bar copy" style="width:${(data.categories.Copy||0)/maxCat*100}%"></div></div>
+      <span class="cat-count">${data.categories.Copy || 0}</span>
+    </div>
+    <div class="cat-row">
+      <span class="cat-label">Code</span>
+      <div class="cat-bar-wrap"><div class="cat-bar code" style="width:${(data.categories.Code||0)/maxCat*100}%"></div></div>
+      <span class="cat-count">${data.categories.Code || 0}</span>
+    </div>`;
+
+  const maxCount = Math.max(...data.results.map(r =>
+    r.violations.reduce((s, v) => s + v.count, 0)
+  ), 1);
+
+  const sorted = [...data.results].sort((a, b) => {
+    const aSum = a.violations.reduce((s, v) => s + v.count, 0);
+    const bSum = b.violations.reduce((s, v) => s + v.count, 0);
+    return bSum - aSum;
+  });
+
+  breakdown.innerHTML = '<h3>File Breakdown</h3>' + sorted.map(r => {
+    const total = r.violations.reduce((s, v) => s + v.count, 0);
+    const ccls = countClass(total, maxCount);
+    return `<details class="file-row">
+      <summary>
+        <span class="file-name">${esc(r.file)}</span>
+        <span class="file-count ${ccls}">${total} violations</span>
+      </summary>
+      ${r.violations.map(v => `
+        <div class="violation-item">
+          <span>${v.label} &times; ${v.count}</span>
+          <span class="sample">${esc(v.lines[0] || '')}</span>
+        </div>`).join('')}
+    </details>`;
+  }).join('');
+
+  results.classList.add('active');
+  results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+</script>
+</body>
+</html>

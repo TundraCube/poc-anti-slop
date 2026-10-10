@@ -1,0 +1,12 @@
+{
+  "name": "anti-slop-scanner",
+  "version": "1.0.0",
+  "description": "Scan GitHub repos for AI-slop patterns",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
